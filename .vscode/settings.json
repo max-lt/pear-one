@@ -1,5 +1,9 @@
 {
   "files.insertFinalNewline": true,
   "editor.formatOnSave": true,
-  "editor.formatOnSaveMode": "modificationsIfAvailable"
+  "editor.formatOnSaveMode": "modificationsIfAvailable",
+  "cSpell.words": [
+    "hypercore",
+    "hyperswarm"
+  ]
 }

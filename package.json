@@ -13,5 +13,13 @@
   "scripts": {
     "dev": "pear dev",
     "test": "brittle test/*.test.js"
+  },
+  "dependencies": {
+    "b4a": "^1.6.6",
+    "bare-process": "^2.2.0",
+    "bare-readline": "^1.0.5",
+    "bare-tty": "^3.4.0",
+    "hypercore-crypto": "^3.4.2",
+    "hyperswarm": "^4.8.0"
   }
 }
