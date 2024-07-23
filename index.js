@@ -84,7 +84,7 @@ rl.on('close', async () => {
 });
 
 async function joinChatRoom(topicStr) {
-  const topicBuffer = crypto.hash(Uint8Array.from(Buffer.from(topicStr, 'hex')));
+  const topicBuffer = crypto.hash(Uint8Array.from(topicStr, (c) => c.charCodeAt(0)));
   const topicHex = b4a.toString(topicBuffer, 'hex');
 
   await joinSwarm(topicBuffer);
