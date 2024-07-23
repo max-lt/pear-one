@@ -2,17 +2,19 @@
 import Hyperswarm from 'hyperswarm'; // Module for P2P networking and connecting peers
 import b4a from 'b4a'; // Module for buffer-to-string and vice-versa conversions
 import crypto from 'hypercore-crypto'; // Cryptographic functions for generating the key in app
-import readline from 'bare-readline'; // Module for reading user input in terminal
-import process from 'bare-process';
-import tty from 'bare-tty'; // Module to control terminal behavior
+import readline from 'node:readline/promises';
+import tty from 'node:tty';
 
-const { teardown, config } = Pear; // Import configuration options and cleanup functions from Pear
+const config = {
+  args: process.argv.slice(2)
+};
+
 const COMMANDS = ['join'];
 const cmd = config.args[0];
 const room = config.args[1];
 
 if (!COMMANDS.includes(cmd)) {
-  console.error(`[error] Invalid command: ${cmd}; Usage: pear dev . join [key]`);
+  console.error(`[error] Invalid command: ${cmd}; Usage: pear run pear://<pear-key> join <channel> [as <name>]`);
   process.exit(1);
 }
 
@@ -25,10 +27,6 @@ const name = (config.args[2] === 'as' && config.args[3]) || 'anon-' + Math.rando
 const nameSymbol = Symbol('peer-name');
 
 const swarm = new Hyperswarm();
-
-// Unannounce the public key before exiting the process
-// (This is not a requirement, but it helps avoid DHT pollution)
-teardown(() => swarm.destroy());
 
 const rl = readline.createInterface({
   input: new tty.ReadStream(0),
@@ -69,8 +67,8 @@ swarm.on('connection', (peer) => {
 
 await joinChatRoom(room);
 
-rl.input.setMode(tty.constants.MODE_RAW); // Enable raw input mode for efficient key reading
-rl.on('data', (line) => {
+rl.input.setRawMode(true); // Enable raw input mode for efficient key reading
+rl.on('line', (line) => {
   sendMessage(line);
   rl.prompt();
 });
@@ -78,7 +76,7 @@ rl.prompt();
 
 rl.on('close', async () => {
   console.log('[info] Exiting chat room');
-  rl.input.setMode(tty.constants.MODE_NORMAL); // Reset the terminal to normal mode
+  rl.input.setRawMode(false); // Reset the terminal to normal mode
   rl.input.destroy();
   swarm.destroy();
 });
