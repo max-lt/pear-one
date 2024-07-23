@@ -8,13 +8,21 @@ import tty from 'bare-tty'; // Module to control terminal behavior
 
 const { teardown, config } = Pear; // Import configuration options and cleanup functions from Pear
 const COMMANDS = ['join'];
-const room = config.args.pop();
-const cmd = config.args.pop();
+const cmd = config.args[0];
+const room = config.args[1];
 
 if (!COMMANDS.includes(cmd)) {
   console.error(`[error] Invalid command: ${cmd}; Usage: pear dev . join [key]`);
   process.exit(1);
 }
+
+if (!room) {
+  console.error('[error] Chat room key is required');
+  process.exit(1);
+}
+
+const name = (config.args[2] === 'as' && config.args[3]) || 'anon-' + Math.random().toString(36).slice(2, 8);
+const nameSymbol = Symbol('peer-name');
 
 const swarm = new Hyperswarm();
 
@@ -29,21 +37,34 @@ const rl = readline.createInterface({
 
 // When there's a new connection, listen for new messages, and output them to the terminal
 swarm.on('connection', (peer) => {
-  const name = b4a.toString(peer.remotePublicKey, 'hex').substr(0, 6);
-  appendMessage('info', `Peer ${name} joined`);
-  peer.on('data', (message) => appendMessage(name, message));
+  const peerName = b4a.toString(peer.remotePublicKey, 'hex').substr(0, 6);
+  appendMessage('info', `Peer ${peerName} joined`);
+
+  peer.write(`/name?`);
+
+  peer.on('data', (message) => {
+    const messageStr = message.toString();
+
+    if (messageStr === '/name?') {
+      peer.write(`/name=${name}`);
+      return;
+    }
+
+    if (messageStr.startsWith('/name=')) {
+      appendMessage('info', `Peer ${peerName} is now known as ${messageStr.substr(6)}`);
+      peer[nameSymbol] = messageStr.substr(6);
+      return;
+    }
+
+    appendMessage(peer[nameSymbol] ?? peerName, messageStr);
+  });
   peer.on('error', (e) => {
     if (e.code !== 'ECONNRESET') {
       appendMessage('error', `Connection error: ${e} ${e.code}`);
     } else {
-      appendMessage('info', `Peer ${name} left`);
+      appendMessage('info', `Peer ${peerName} left`);
     }
   });
-});
-
-// When there's updates to the swarm, update the peers count
-swarm.on('update', () => {
-  // console.log(`[info] Number of connections is now ${swarm.connections.size}`);
 });
 
 await joinChatRoom(room);
@@ -80,7 +101,9 @@ async function joinSwarm(topicBuffer) {
 // Send the message to all peers (that you are connected to)
 function sendMessage(message) {
   const peers = [...swarm.connections];
-  for (const peer of peers) peer.write(message);
+  for (const peer of peers) {
+    peer.write(message);
+  }
 }
 
 // Output chat msgs to terminal
