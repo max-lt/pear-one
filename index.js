@@ -5,16 +5,15 @@ import crypto from 'hypercore-crypto'; // Cryptographic functions for generating
 import readline from 'node:readline/promises';
 import tty from 'node:tty';
 
-const config = {
-  args: process.argv.slice(2)
-};
+const args = process.argv;
 
 const COMMANDS = ['join'];
-const cmd = config.args[0];
-const room = config.args[1];
+const cmd = args[2];
+const room = args[3];
 
 if (!COMMANDS.includes(cmd)) {
-  console.error(`[error] Invalid command: ${cmd}; Usage: pear run pear://<pear-key> join <channel> [as <name>]`);
+  const last = (str) => str.split('/').pop();
+  console.error(`[error] Invalid command: ${cmd}; Usage: ${last(args[0])} ${last(args[1])} join <channel> [as <name>]`);
   process.exit(1);
 }
 
@@ -23,7 +22,7 @@ if (!room) {
   process.exit(1);
 }
 
-const name = (config.args[2] === 'as' && config.args[3]) || 'anon-' + Math.random().toString(36).slice(2, 8);
+const name = (args[4] === 'as' && config.args[5]) || 'anon-' + Math.random().toString(36).slice(2, 8);
 const nameSymbol = Symbol('peer-name');
 
 const swarm = new Hyperswarm();
@@ -75,7 +74,7 @@ rl.on('line', (line) => {
 rl.prompt();
 
 rl.on('close', async () => {
-  console.log('[info] Exiting chat room');
+  console.log('\r[info] Exiting chat room');
   rl.input.setRawMode(false); // Reset the terminal to normal mode
   rl.input.destroy();
   swarm.destroy();
@@ -84,6 +83,8 @@ rl.on('close', async () => {
 async function joinChatRoom(topicStr) {
   const topicBuffer = crypto.hash(Uint8Array.from(topicStr, (c) => c.charCodeAt(0)));
   const topicHex = b4a.toString(topicBuffer, 'hex');
+
+  rl.output.write(`[info] Joining chat room ${topicStr} (${topicHex})\n...`);
 
   await joinSwarm(topicBuffer);
 
