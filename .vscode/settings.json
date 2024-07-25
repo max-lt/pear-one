@@ -3,7 +3,9 @@
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "modificationsIfAvailable",
   "cSpell.words": [
+    "corestore",
     "hypercore",
+    "hyperdrive",
     "hyperswarm"
   ]
 }
