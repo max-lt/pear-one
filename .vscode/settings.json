@@ -3,6 +3,8 @@
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "modificationsIfAvailable",
   "cSpell.words": [
+    "bitfield",
+    "corestore",
     "hypercore",
     "hyperswarm"
   ]
