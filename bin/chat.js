@@ -40,7 +40,7 @@ swarm.on('connection', (peer) => {
   peer.write(`/name?`);
 
   peer.on('data', (message) => {
-    const messageStr = message.toString();
+    const messageStr = message.toString().trim();
 
     if (messageStr === '/name?') {
       peer.write(`/name=${name}`);
@@ -50,6 +50,10 @@ swarm.on('connection', (peer) => {
     if (messageStr.startsWith('/name=')) {
       appendMessage('info', `Peer ${peerName} is now known as ${messageStr.substr(6)}`);
       peer[nameSymbol] = messageStr.substr(6);
+      return;
+    }
+
+    if (messageStr === '') {
       return;
     }
 
@@ -68,7 +72,12 @@ await joinChatRoom(room);
 
 rl.input.setRawMode(true); // Enable raw input mode for efficient key reading
 rl.on('line', (line) => {
-  sendMessage(line);
+  const message = line.trim()
+
+  if (message) {
+    sendMessage(message);
+  }
+
   rl.prompt();
 });
 rl.prompt();
