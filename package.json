@@ -19,7 +19,9 @@
     "bare-process": "^2.2.0",
     "bare-readline": "^1.0.5",
     "bare-tty": "^3.4.0",
+    "corestore": "^6.18.4",
     "hypercore-crypto": "^3.4.2",
-    "hyperswarm": "^4.8.0"
+    "hyperswarm": "^4.8.0",
+    "random-access-memory": "^6.2.1"
   }
 }

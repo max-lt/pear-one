@@ -1,44 +1,53 @@
+import Corestore from 'corestore';
 import Hyperswarm from 'hyperswarm';
-import HyperCore from 'hypercore';
 import b4a from 'b4a';
-// import crypto from 'hypercore-crypto'; // Cryptographic functions for generating the key in app
-// import Corestore from 'corestore';
-import RAM from 'random-access-memory';
-// import Hyperdrive from 'hyperdrive';
-import readline from 'node:readline/promises';
-import tty from 'node:tty';
 
 const swarm = new Hyperswarm();
-const core = new HyperCore((filename) => {
-  // Filename will be one of: data, bitfield, tree, signatures, key, secret_key
-  // The data file will contain all the data concatenated.
+const store = new Corestore('/tmp/corestore-writer');
 
-  // Store all files in ram by returning a random-access-memory instance
-  return new RAM();
-});
+const core1 = store.get({ name: 'core-1', valueEncoding: 'json' });
+const core2 = store.get({ name: 'core-2' });
+const core3 = store.get({ name: 'core-3' });
+await Promise.all([core1.ready(), core2.ready(), core3.ready()]);
 
-core.on('ready', () => console.log('Core ready'));
-core.on('close', () => console.log('Core close'));
-core.on('append', () => console.log('Core append'));
-core.on('peer-add', () => console.log('Core peer-add'));
-core.on('peer-remove', () => console.log('Core peer-remove'));
-core.on('truncate', (ancestors, forkId) => console.log('Core truncate', ancestors, forkId));
+console.log('main discovery key:', b4a.toString(core1.discoveryKey, 'hex'));
+console.log('main key:', b4a.toString(core1.key, 'hex'));
 
-await core.ready();
+// Here we'll only join the swarm with core1's discovery key
+// We don't need to announce core2 or core3 because they'll be replicated with core1
+swarm.join(core1.discoveryKey);
 
-console.log('hypercore discovery key:', b4a.toString(core.discoveryKey, 'hex'));
-console.log('hypercore key:', b4a.toString(core.key, 'hex'));
-
-// Append all data as separate blocks to the core
-process.stdin.on('data', (data) => core.append(data));
-
-swarm.join(core.discoveryKey);
 swarm.on('error', (err) => console.error('Swarm error:', err));
 swarm.on('ready', () => console.log('Swarm ready'));
 swarm.on('connection', (conn) => {
   console.log('new peer connected');
 
-  core.replicate(conn);
+  store.replicate(conn);
+});
+
+// Since Corestore does not exchange discovery keys, they need to be manually shared
+// We will record the discovery keys of core2 and core3 in the first block of core1
+if (!core1.length) {
+  core1.append({
+    keys: [
+      b4a.toString(core2.key, 'hex'), //
+      b4a.toString(core3.key, 'hex')
+    ]
+  });
+}
+
+process.stdin.on('data', (data) => {
+  if (data.length < 2) {
+    return;
+  }
+
+  if (data.length < 5) {
+    console.log('append short data to core 2');
+    core2.append(data);
+  } else {
+    console.log('append long data to core 3');
+    core3.append(data);
+  }
 });
 
 // Teardown
@@ -50,6 +59,7 @@ function teardown() {
   if (!stopping) {
     console.log('Gracefully shutting down, press Ctrl+C again to force');
     stopping = true;
+    store.close();
     swarm.destroy();
   } else {
     process.exit(0);

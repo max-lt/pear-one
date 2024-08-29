@@ -1,5 +1,5 @@
+import Corestore from 'corestore';
 import Hyperswarm from 'hyperswarm';
-import HyperCore from 'hypercore';
 import b4a from 'b4a';
 import RAM from 'random-access-memory';
 
@@ -10,30 +10,26 @@ if (!args[2] || !/^[0-9a-f]{64}$/.test(args[2])) {
   process.exit(1);
 }
 
-const discoveryKey = args[2] && args[2].length === 64 ? b4a.from(args[2], 'hex') : null;
+const key = args[2] && args[2].length === 64 ? b4a.from(args[2], 'hex') : null;
 
-if (!discoveryKey) {
+if (!key) {
   console.error('[error] Hypercore discovery key is required');
   process.exit(1);
 }
 
-console.log('hypercore discovery key:', b4a.toString(discoveryKey, 'hex'));
+console.log('hypercore discovery key:', b4a.toString(key, 'hex'));
 
 const swarm = new Hyperswarm();
-const core = new HyperCore((filename) => {
+const store = new Corestore((filename) => {
   // Filename will be one of: data, bitfield, tree, signatures, key, secret_key
   // The data file will contain all the data concatenated.
 
   // Store all files in ram by returning a random-access-memory instance
   return new RAM();
-}, discoveryKey);
+});
 
-core.on('ready', () => console.log('Core ready'));
-core.on('close', () => console.log('Core close'));
-core.on('append', () => console.log('Core append'));
-core.on('peer-add', () => console.log('Core peer-add'));
-core.on('peer-remove', () => console.log('Core peer-remove'));
-core.on('truncate', (ancestors, forkId) => console.log('Core truncate', ancestors, forkId));
+// Get sync core
+const core = store.get({ key, valueEncoding: 'json' });
 
 await core.ready();
 
@@ -48,7 +44,7 @@ swarm.on('ready', () => console.log('Swarm ready'));
 swarm.on('connection', (conn) => {
   console.log('new peer connected');
 
-  core.replicate(conn);
+  store.replicate(conn);
 });
 
 // Swarm.flush() will wait until *all* discoverable peers have been connected to
@@ -67,11 +63,24 @@ swarm.flush().then(() => {
 const updated = await core.update();
 console.log('core was updated?', updated, 'length is', core.length);
 
-let position = 0;
-console.log('Reading from position:', position);
-for await (const block of core.createReadStream({ start: position, live: true })) {
-  console.log(`Block ${position}:`, block.toString().replace(/\n$/, ''));
-  position++;
+if (core.length === 0) {
+  throw new Error('No data in core');
+}
+
+const { keys } = await core.get(0);
+for await (const key of keys) {
+  console.log('Loading core with discovery key:', key);
+
+  const core = store.get({ key: b4a.from(key, 'hex') });
+  // On every append to the hypercore,
+  // download the latest block and print it
+  core.on('append', () => {
+    console.log('new data appended to core');
+    const seq = core.length - 1;
+    core.get(seq).then((block) => {
+      console.log(`Last block (${seq}) in core ${key} is`, block.toString().replace(/\n/g, ''));
+    });
+  });
 }
 
 // Teardown
