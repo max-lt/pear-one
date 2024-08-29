@@ -22,7 +22,7 @@ if (!room) {
   process.exit(1);
 }
 
-const name = (args[4] === 'as' && config.args[5]) || 'anon-' + Math.random().toString(36).slice(2, 8);
+const name = (args[4] === 'as' && args[5]) || 'anon-' + Math.random().toString(36).slice(2, 8);
 const nameSymbol = Symbol('peer-name');
 
 const swarm = new Hyperswarm();
